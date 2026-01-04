@@ -127,13 +127,44 @@
         );
 
         const BOSS_PRESETS = [
-            { name: '石頭人', respawnMin: 60, respawnMax: 90 },
-            { name: '殭屍猴王', respawnMin: 120, respawnMax: 180 },
-            { name: '鱷魚王', respawnMin: 60, respawnMax: 90 },
-            { name: '蝙蝠王', respawnMin: 90, respawnMax: 120 },
-            { name: '蘑菇王', respawnMin: 60, respawnMax: 90 },
-            { name: '樹妖王', respawnMin: 120, respawnMax: 180 },
-            { name: '大腳怪', respawnMin: 60, respawnMax: 90 },
+            { name: '紅寶王', respawnMin: 23, respawnMax: 30 },
+            { name: '樹妖王', respawnMin: 23, respawnMax: 30 },
+            { name: '冥界幽靈', respawnMin: 45, respawnMax: 60 },
+            { name: '殭屍猴王', respawnMin: 38, respawnMax: 45 },
+            { name: '巨居蟹', respawnMin: 45, respawnMax: 60 },
+            { name: '沼澤巨鱷', respawnMin: 90, respawnMax: 135 },
+            { name: '蘑菇王', respawnMin: 210, respawnMax: 240 },
+            { name: '殭屍蘑菇王', respawnMin: 195, respawnMax: 225 },
+            { name: '巴洛古', respawnMin: 405, respawnMax: 540 },
+            { name: '雪山女巫', respawnMin: 158, respawnMax: 180 },
+            { name: '厄運死神', respawnMin: 45, respawnMax: 105 },
+            { name: '雪毛怪人', respawnMin: 45, respawnMax: 68 },
+            { name: '艾利杰', respawnMin: 118, respawnMax: 128 },
+            { name: '咕咕鐘', respawnMin: 68, respawnMax: 90 },
+            { name: '書生幽靈', respawnMin: 150, respawnMax: 300 },
+            { name: '葛雷金剛', respawnMin: 270, respawnMax: 350 },
+            { name: '九尾妖狐', respawnMin: 210, respawnMax: 570 },
+            { name: '蘑菇王', respawnMin: 210, respawnMax: 240 },
+            { name: '海怒斯', respawnMin: 180, respawnMax: 300 },
+            { name: '仙人長老', respawnMin: 68, respawnMax: 90 },
+            { name: '紅藍雙怪', respawnMin: 113, respawnMax: 135 },
+            { name: '自動警備系統', respawnMin: 158, respawnMax: 173 },
+            { name: 'D．洛伊', respawnMin: 150, respawnMax: 165 },
+            { name: '奇美拉', respawnMin: 120, respawnMax: 135 },
+            { name: '仙人娃娃', respawnMin: 158, respawnMax: 180 },
+            { name: '巨大深山人蔘', respawnMin: 60, respawnMax: 135 },
+            { name: '肯德熊', respawnMin: 113, respawnMax: 128 },
+            { name: '喵怪仙人', respawnMin: 150, respawnMax: 170 },
+            { name: '噴火龍', respawnMin: 20, respawnMax: 60 },
+            { name: '格瑞芬多', respawnMin: 20, respawnMax: 60 },
+            { name: '寒霜冰龍', respawnMin: 240, respawnMax: 720 },
+            { name: '多多', respawnMin: 45, respawnMax: 315 },
+            { name: '利里諾斯', respawnMin: 45, respawnMax: 315 },
+            { name: '萊伊卡', respawnMin: 45, respawnMax: 315 },
+            { name: '竹刀武士', respawnMin: 113, respawnMax: 128 },
+            { name: '藍色蘑菇王', respawnMin: 1000, respawnMax: 1880 },
+            { name: '蜈蚣王', respawnMin: 45, respawnMax: 135 },
+            { name: '黑輪王', respawnMin: 780, respawnMax: 1020 },
         ];
 
         const BossTracker = () => {
@@ -407,7 +438,7 @@
                             </div>
                             
                             <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                                {[...Array(30)].map((_, i) => (
+                                {[...Array(40)].map((_, i) => (
                                     <button
                                         key={i + 1}
                                         onClick={() => setSelectedChannel(i + 1)}
@@ -457,53 +488,7 @@
                                             ))}
                                         </div>
 
-                                        <h3 className="text-lg font-semibold text-white mb-3">自訂 BOSS</h3>
-                                        <div className="grid gap-3">
-                                            <input
-                                                type="text"
-                                                placeholder="BOSS 名稱"
-                                                value={newBossName}
-                                                onChange={(e) => setNewBossName(e.target.value)}
-                                                className="px-3 py-2 rounded bg-white/90 text-gray-800"
-                                            />
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-white text-sm block mb-1">最小重生時間(分鐘)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={newBossRespawnMin}
-                                                        onChange={(e) => setNewBossRespawnMin(parseInt(e.target.value) || 0)}
-                                                        className="px-3 py-2 rounded bg-white/90 text-gray-800 w-full"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-white text-sm block mb-1">最大重生時間(分鐘)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={newBossRespawnMax}
-                                                        onChange={(e) => setNewBossRespawnMax(parseInt(e.target.value) || 0)}
-                                                        className="px-3 py-2 rounded bg-white/90 text-gray-800 w-full"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    if (newBossName.trim()) {
-                                                        addBossToChannel(selectedChannel, {
-                                                            name: newBossName.trim(),
-                                                            respawnMin: newBossRespawnMin,
-                                                            respawnMax: newBossRespawnMax
-                                                        });
-                                                        setNewBossName('');
-                                                        setNewBossRespawnMin(60);
-                                                        setNewBossRespawnMax(90);
-                                                    }
-                                                }}
-                                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
-                                            >
-                                                確認新增
-                                            </button>
-                                        </div>
+                                        
                                     </div>
                                 )}
 
