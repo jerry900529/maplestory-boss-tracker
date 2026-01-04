@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>楓之谷 BOSS 追蹤器</title>
+    <title>楓之谷 BOSS 追蹤器 - 頻道提示版</title>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; }
+        .boss-img-placeholder { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .modal-overlay { animation: fadeIn 0.2s ease-out; }
+        .modal-content { animation: slideUp 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
-        // ⚠️ 請在這裡填入你的 Firebase 配置
-        // 前往 https://console.firebase.google.com 取得你的配置
         const firebaseConfig = {
             apiKey: "AIzaSyD4_sWkjsl_gMOTkjiFdFV9pxcPMrXOU0M",
             authDomain: "maple-boss-tracker.firebaseapp.com",
@@ -37,275 +36,123 @@
             storageBucket: "maple-boss-tracker.firebasestorage.app",
             messagingSenderId: "261307144960",
             appId: "1:261307144960:web:ee428ceaea5bae1efab1e5"
-            };
+        };
 
-        // 初始化 Firebase
         let database = null;
         let isFirebaseConfigured = false;
-        
         try {
             if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
                 database = firebase.database();
                 isFirebaseConfigured = true;
             }
-        } catch (error) {
-            console.error("Firebase 初始化錯誤:", error);
-        }
+        } catch (error) { console.error("Firebase 初始化錯誤:", error); }
 
-        // Lucide Icons 組件
-        const Clock = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-            </svg>
-        );
-
-        const CheckCircle = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-        );
-
-        const XCircle = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-        );
-
-        const Plus = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-        );
-
-        const Trash2 = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                <line x1="10" y1="11" x2="10" y2="17"/>
-                <line x1="14" y1="11" x2="14" y2="17"/>
-            </svg>
-        );
-
-        const Users = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-        );
-
-        const User = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-            </svg>
-        );
-
-        const RefreshCw = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <polyline points="23 4 23 10 17 10"/>
-                <polyline points="1 20 1 14 7 14"/>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
-        );
-
-        const AlertCircle = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-        );
+        // Icons
+        const Clock = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
+        const CheckCircle = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+        const XCircle = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>);
+        const Plus = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>);
+        const Trash2 = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>);
+        const Users = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
+        const User = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
+        const RefreshCw = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>);
+        const X = ({ size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
 
         const BOSS_PRESETS = [
-            { name: '紅寶王', respawnMin: 23, respawnMax: 30 },
-            { name: '樹妖王', respawnMin: 23, respawnMax: 30 },
-            { name: '冥界幽靈', respawnMin: 45, respawnMax: 60 },
-            { name: '殭屍猴王', respawnMin: 38, respawnMax: 45 },
-            { name: '巨居蟹', respawnMin: 45, respawnMax: 60 },
-            { name: '沼澤巨鱷', respawnMin: 90, respawnMax: 135 },
-            { name: '蘑菇王', respawnMin: 210, respawnMax: 240 },
-            { name: '殭屍蘑菇王', respawnMin: 195, respawnMax: 225 },
-            { name: '巴洛古', respawnMin: 405, respawnMax: 540 },
-            { name: '雪山女巫', respawnMin: 158, respawnMax: 180 },
-            { name: '厄運死神', respawnMin: 45, respawnMax: 105 },
-            { name: '雪毛怪人', respawnMin: 45, respawnMax: 68 },
-            { name: '艾利杰', respawnMin: 118, respawnMax: 128 },
-            { name: '咕咕鐘', respawnMin: 68, respawnMax: 90 },
-            { name: '書生幽靈', respawnMin: 150, respawnMax: 300 },
-            { name: '葛雷金剛', respawnMin: 270, respawnMax: 350 },
-            { name: '九尾妖狐', respawnMin: 210, respawnMax: 570 },
-            { name: '蘑菇王', respawnMin: 210, respawnMax: 240 },
-            { name: '海怒斯', respawnMin: 180, respawnMax: 300 },
-            { name: '仙人長老', respawnMin: 68, respawnMax: 90 },
-            { name: '紅藍雙怪', respawnMin: 113, respawnMax: 135 },
-            { name: '自動警備系統', respawnMin: 158, respawnMax: 173 },
-            { name: 'D．洛伊', respawnMin: 150, respawnMax: 165 },
-            { name: '奇美拉', respawnMin: 120, respawnMax: 135 },
-            { name: '仙人娃娃', respawnMin: 158, respawnMax: 180 },
-            { name: '巨大深山人蔘', respawnMin: 60, respawnMax: 135 },
-            { name: '肯德熊', respawnMin: 113, respawnMax: 128 },
-            { name: '喵怪仙人', respawnMin: 150, respawnMax: 170 },
-            { name: '噴火龍', respawnMin: 20, respawnMax: 60 },
-            { name: '格瑞芬多', respawnMin: 20, respawnMax: 60 },
-            { name: '寒霜冰龍', respawnMin: 240, respawnMax: 720 },
-            { name: '多多', respawnMin: 45, respawnMax: 315 },
-            { name: '利里諾斯', respawnMin: 45, respawnMax: 315 },
-            { name: '萊伊卡', respawnMin: 45, respawnMax: 315 },
-            { name: '竹刀武士', respawnMin: 113, respawnMax: 128 },
-            { name: '藍色蘑菇王', respawnMin: 1000, respawnMax: 1880 },
-            { name: '蜈蚣王', respawnMin: 45, respawnMax: 135 },
-            { name: '黑輪王', respawnMin: 780, respawnMax: 1020 },
+            { name: '紅寶王', respawnMin: 23, respawnMax: 30, img: 'images/紅寶王.png', region: '維多利亞島' },
+            { name: '樹妖王', respawnMin: 23, respawnMax: 30, img: 'images/樹妖王.png', region: '維多利亞島' },
+            { name: '冥界幽靈', respawnMin: 45, respawnMax: 60, img: 'images/冥界幽靈.png', region: '維多利亞島' },
+            { name: '殭屍猴王', respawnMin: 38, respawnMax: 45, img: 'images/殭屍猴王.png', region: '維多利亞島' },
+            { name: '巨居蟹', respawnMin: 45, respawnMax: 60, img: 'images/巨居蟹.png', region: '維多利亞島' },
+            { name: '沼澤巨鱷', respawnMin: 90, respawnMax: 135, img: 'images/沼澤巨鱷.png', region: '維多利亞島' },
+            { name: '蘑菇王', respawnMin: 210, respawnMax: 240, img: 'images/蘑菇王.png', region: '維多利亞島' },
+            { name: '殭屍蘑菇王', respawnMin: 195, respawnMax: 225, img: 'images/殭屍蘑菇王.png', region: '維多利亞島' },
+            { name: '巴洛古', respawnMin: 405, respawnMax: 540, img: 'images/巴洛古.png', region: '維多利亞島' },
+            { name: '雪山女巫', respawnMin: 158, respawnMax: 180, img: 'images/雪山女巫.png', region: '冰原+天空' },
+            { name: '厄運死神', respawnMin: 45, respawnMax: 105, img: 'images/厄運死神.png', region: '冰原+天空' },
+            { name: '雪毛怪人', respawnMin: 45, respawnMax: 68, img: 'images/雪毛怪人.png', region: '冰原+天空' },
+            { name: '艾利杰', respawnMin: 118, respawnMax: 128, img: 'images/艾利杰.png', region: '冰原+天空' },
+            { name: '咕咕鐘', respawnMin: 68, respawnMax: 90, img: 'images/咕咕鐘.png', region: '玩具+童話+地球+水世界' },
+            { name: '書生幽靈', respawnMin: 150, respawnMax: 300, img: 'images/書生幽靈.png', region: '玩具+童話+地球+水世界' },
+            { name: '葛雷金剛', respawnMin: 270, respawnMax: 350, img: 'images/葛雷金剛.png', region: '玩具+童話+地球+水世界' },
+            { name: '九尾妖狐', respawnMin: 210, respawnMax: 570, img: 'images/九尾妖狐.png', region: '玩具+童話+地球+水世界' },
+            { name: '海怒斯', respawnMin: 180, respawnMax: 300, img: 'images/海怒斯.png', region: '玩具+童話+地球+水世界' },
+            { name: '仙人長老', respawnMin: 68, respawnMax: 90, img: 'images/仙人長老.png', region: '沙漠+研究所' },
+            { name: '紅藍雙怪', respawnMin: 113, respawnMax: 135, img: 'images/紅藍雙怪.png', region: '沙漠+研究所' },
+            { name: '自動警備系統', respawnMin: 158, respawnMax: 173, img: 'images/自動警備系統.png', region: '沙漠+研究所' },
+            { name: 'D．洛伊', respawnMin: 150, respawnMax: 165, img: 'images/D．洛伊.png', region: '沙漠+研究所' },
+            { name: '奇美拉', respawnMin: 120, respawnMax: 135, img: 'images/奇美拉.png', region: '沙漠+研究所' },
+            { name: '仙人娃娃', respawnMin: 158, respawnMax: 180, img: 'images/仙人娃娃.png', region: '武陵+靈藥' },
+            { name: '巨大深山人蔘', respawnMin: 60, respawnMax: 135, img: 'images/巨大深山人蔘.png', region: '武陵+靈藥' },
+            { name: '肯德熊', respawnMin: 113, respawnMax: 128, img: 'images/肯德熊.png', region: '武陵+靈藥' },
+            { name: '喵怪仙人', respawnMin: 150, respawnMax: 170, img: 'images/喵怪仙人.png', region: '武陵+靈藥' },
+            { name: '噴火龍', respawnMin: 20, respawnMax: 60, img: 'images/噴火龍.png', region: '神木+神殿' },
+            { name: '格瑞芬多', respawnMin: 20, respawnMax: 60, img: 'images/格瑞芬多.png', region: '神木+神殿' },
+            { name: '寒霜冰龍', respawnMin: 240, respawnMax: 720, img: 'images/寒霜冰龍.png', region: '神木+神殿' },
+            { name: '多多', respawnMin: 45, respawnMax: 315, img: 'images/多多.png', region: '神木+神殿' },
+            { name: '利里諾斯', respawnMin: 45, respawnMax: 315, img: 'images/利里諾斯.png', region: '神木+神殿' },
+            { name: '萊伊卡', respawnMin: 45, respawnMax: 315, img: 'images/萊伊卡.png', region: '神木+神殿' },
+            { name: '竹刀武士', respawnMin: 113, respawnMax: 128, img: 'images/竹刀武士.png', region: '世界旅行' },
+            { name: '藍色蘑菇王', respawnMin: 1000, respawnMax: 1880, img: 'images/藍色蘑菇王.png', region: '世界旅行' },
+            { name: '蜈蚣王', respawnMin: 45, respawnMax: 135, img: 'images/蜈蚣王.png', region: '世界旅行' },
+            { name: '黑輪王', respawnMin: 780, respawnMax: 1020, img: 'images/黑輪王.png', region: '世界旅行' },
+            { name: '瘋狂喵z客', respawnMin: 180, respawnMax: 300, img: 'images/瘋狂喵z客.png', region: '世界旅行' }
         ];
 
         const BossTracker = () => {
             const [selectedChannel, setSelectedChannel] = useState(1);
             const [bosses, setBosses] = useState({});
             const [currentTime, setCurrentTime] = useState(new Date());
-            const [showAddBoss, setShowAddBoss] = useState(false);
-            const [newBossName, setNewBossName] = useState('');
-            const [newBossRespawnMin, setNewBossRespawnMin] = useState(60);
-            const [newBossRespawnMax, setNewBossRespawnMax] = useState(90);
+            const [isModalOpen, setIsModalOpen] = useState(false);
             const [useSharedData, setUseSharedData] = useState(isFirebaseConfigured);
             const [isLoading, setIsLoading] = useState(true);
-            const [lastUpdate, setLastUpdate] = useState(null);
-            const [onlineUsers, setOnlineUsers] = useState(0);
 
-            // 從 localStorage 或 Firebase 載入資料
+            const groupedPresets = useMemo(() => {
+                return BOSS_PRESETS.reduce((acc, boss) => {
+                    if (!acc[boss.region]) acc[boss.region] = [];
+                    acc[boss.region].push(boss);
+                    return acc;
+                }, {});
+            }, []);
+
             useEffect(() => {
                 if (useSharedData && database) {
-                    // 監聽 Firebase 資料變化
                     const bossesRef = database.ref('bosses');
-                    
                     const handleData = (snapshot) => {
-                        const data = snapshot.val();
-                        if (data) {
-                            // 轉換 deathTime 回 Date 物件
-                            Object.keys(data).forEach(ch => {
-                                Object.keys(data[ch]).forEach(boss => {
-                                    if (data[ch][boss].deathTime) {
-                                        data[ch][boss].deathTime = new Date(data[ch][boss].deathTime);
-                                    }
-                                });
-                            });
-                            setBosses(data);
-                            setLastUpdate(new Date());
-                        }
+                        setBosses(snapshot.val() || {});
                         setIsLoading(false);
                     };
-
                     bossesRef.on('value', handleData);
                     return () => bossesRef.off('value', handleData);
                 } else {
-                    // 使用 localStorage
                     const saved = localStorage.getItem('mapleBossTracker');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        Object.keys(parsed).forEach((ch) => {
-                            Object.keys(parsed[ch]).forEach((boss) => {
-                                if (parsed[ch][boss].deathTime) {
-                                    parsed[ch][boss].deathTime = new Date(parsed[ch][boss].deathTime);
-                                }
-                            });
-                        });
-                        setBosses(parsed);
-                    }
+                    if (saved) setBosses(JSON.parse(saved));
                     setIsLoading(false);
                 }
             }, [useSharedData]);
 
-            // 在線人數統計（只在 Firebase 模式）
             useEffect(() => {
-                if (!useSharedData || !database) return;
-
-                const connectionsRef = database.ref('connections');
-                const myConnectionRef = connectionsRef.push();
-
-                myConnectionRef.set(true);
-                myConnectionRef.onDisconnect().remove();
-
-                connectionsRef.on('value', (snapshot) => {
-                    setOnlineUsers(snapshot.numChildren());
-                });
-
-                return () => {
-                    myConnectionRef.remove();
-                    connectionsRef.off();
-                };
-            }, [useSharedData]);
-
-            // 定時更新時間
-            useEffect(() => {
-                const timer = setInterval(() => {
-                    setCurrentTime(new Date());
-                }, 1000);
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
                 return () => clearInterval(timer);
             }, []);
 
-            // 儲存資料
-            useEffect(() => {
-                if (isLoading) return;
-                
-                if (useSharedData && database) {
-                    // 不需要在這裡更新，因為會在操作時直接更新
-                } else {
-                    if (Object.keys(bosses).length > 0) {
-                        localStorage.setItem('mapleBossTracker', JSON.stringify(bosses));
-                    }
-                }
-            }, [bosses, useSharedData, isLoading]);
-
-            // 更新 Firebase 資料
             const updateFirebase = (newBosses) => {
-                if (useSharedData && database) {
-                    database.ref('bosses').set(newBosses).catch((error) => {
-                        console.error('更新失敗:', error);
-                        alert('更新資料失敗，請檢查網路連線');
-                    });
-                }
+                if (useSharedData && database) database.ref('bosses').set(newBosses);
+                localStorage.setItem('mapleBossTracker', JSON.stringify(newBosses));
             };
 
             const addBossToChannel = (channel, bossData) => {
-                const newBosses = {
-                    ...bosses,
-                    [channel]: {
-                        ...(bosses[channel] || {}),
-                        [bossData.name]: {
-                            respawnMin: bossData.respawnMin,
-                            respawnMax: bossData.respawnMax,
-                            deathTime: null,
-                            isAlive: true,
-                        }
-                    }
-                };
+                const newBosses = { ...bosses, [channel]: { ...(bosses[channel] || {}), [bossData.name]: { ...bossData, deathTime: null, isAlive: true } } };
                 setBosses(newBosses);
                 updateFirebase(newBosses);
+                setIsModalOpen(false);
             };
 
             const toggleBossStatus = (channel, bossName) => {
                 const boss = bosses[channel]?.[bossName];
                 if (!boss) return;
-
-                const newBosses = {
-                    ...bosses,
-                    [channel]: {
-                        ...bosses[channel],
-                        [bossName]: {
-                            ...boss,
-                            isAlive: !boss.isAlive,
-                            deathTime: boss.isAlive ? new Date().toISOString() : null,
-                        }
-                    }
-                };
+                const newBosses = { ...bosses, [channel]: { ...bosses[channel], [bossName]: { ...boss, isAlive: !boss.isAlive, deathTime: boss.isAlive ? new Date().toISOString() : null } } };
                 setBosses(newBosses);
                 updateFirebase(newBosses);
             };
@@ -313,120 +160,45 @@
             const removeBoss = (channel, bossName) => {
                 const newChannel = { ...bosses[channel] };
                 delete newChannel[bossName];
-                const newBosses = {
-                    ...bosses,
-                    [channel]: newChannel
-                };
+                const newBosses = { ...bosses, [channel]: newChannel };
                 setBosses(newBosses);
                 updateFirebase(newBosses);
             };
 
             const getRespawnTimeRange = (boss) => {
                 if (!boss.deathTime) return null;
-                
-                const now = currentTime;
-                const minRespawn = new Date(boss.deathTime.getTime() + boss.respawnMin * 60000);
-                const maxRespawn = new Date(boss.deathTime.getTime() + boss.respawnMax * 60000);
-                
-                const formatTime = (date) => {
-                    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-                };
-
-                const timeElapsed = Math.floor((now - boss.deathTime) / 60000);
-                const minRemaining = Math.max(0, boss.respawnMin - timeElapsed);
-                const maxRemaining = Math.max(0, boss.respawnMax - timeElapsed);
-
+                const dTime = new Date(boss.deathTime);
+                const minRespawn = new Date(dTime.getTime() + boss.respawnMin * 60000);
+                const maxRespawn = new Date(dTime.getTime() + boss.respawnMax * 60000);
+                const formatTime = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+                const timeElapsed = Math.floor((currentTime - dTime) / 60000);
                 return {
-                    minTime: formatTime(minRespawn),
-                    maxTime: formatTime(maxRespawn),
-                    minRemaining,
-                    maxRemaining,
+                    minTime: formatTime(minRespawn), maxTime: formatTime(maxRespawn),
+                    minRemaining: Math.max(0, boss.respawnMin - timeElapsed),
+                    maxRemaining: Math.max(0, boss.respawnMax - timeElapsed),
                     isPossiblyAlive: timeElapsed >= boss.respawnMin
                 };
             };
 
+            // 檢查頻道是否有任何 BOSS 死亡
+            const hasDeadBoss = (channelId) => {
+                const channelData = bosses[channelId];
+                if (!channelData) return false;
+                return Object.values(channelData).some(boss => boss.isAlive === false);
+            };
+
             const channelBosses = bosses[selectedChannel] || {};
-
-            // Firebase 未配置提示
-            if (!isFirebaseConfigured) {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4 flex items-center justify-center">
-                        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-2xl p-8 max-w-3xl">
-                            <div className="flex items-center gap-3 mb-4">
-                                <AlertCircle className="text-yellow-400" size={48} />
-                                <h1 className="text-3xl font-bold text-white">Firebase 尚未配置</h1>
-                            </div>
-                            <div className="text-white space-y-4">
-                                <p className="text-lg">目前使用本地儲存模式，如需啟用多人共享功能，請配置 Firebase。</p>
-                                
-                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4">
-                                    <h3 className="font-bold mb-2">📋 設定步驟：</h3>
-                                    <ol className="list-decimal list-inside space-y-2 ml-2">
-                                        <li>前往 <a href="https://console.firebase.google.com" target="_blank" className="text-blue-300 underline">Firebase Console</a></li>
-                                        <li>創建新專案（或選擇現有專案）</li>
-                                        <li>啟用 <strong>Realtime Database</strong></li>
-                                        <li>將資料庫規則設為：
-                                            <pre className="bg-black/30 p-2 rounded mt-1 text-sm overflow-x-auto">
-{`{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}`}
-                                            </pre>
-                                        </li>
-                                        <li>在專案設定中取得配置資訊</li>
-                                        <li>將配置填入此 HTML 文件的 <code className="bg-black/30 px-1 rounded">firebaseConfig</code></li>
-                                    </ol>
-                                </div>
-
-                                <button
-                                    onClick={() => window.location.reload()}
-                                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                                >
-                                    重新載入頁面
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
                     <div className="max-w-6xl mx-auto">
                         <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-2xl p-6 mb-6">
                             <h1 className="text-4xl font-bold text-white mb-2 text-center">楓之谷 BOSS 追蹤器</h1>
-                            <p className="text-blue-200 text-center">
-                                {useSharedData ? '多人即時共享 - 追蹤各頻道 BOSS 重生時間' : '追蹤各頻道 BOSS 重生時間'}
-                            </p>
-                            
                             <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
                                 {isFirebaseConfigured && (
-                                    <button
-                                        onClick={() => setUseSharedData(!useSharedData)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
-                                            useSharedData
-                                                ? 'bg-green-500 text-white'
-                                                : 'bg-gray-500 text-white'
-                                        }`}
-                                    >
-                                        {useSharedData ? <Users size={20} /> : <User size={20} />}
-                                        {useSharedData ? '共享模式' : '個人模式'}
+                                    <button onClick={() => setUseSharedData(!useSharedData)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${useSharedData ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
+                                        {useSharedData ? <Users size={20} /> : <User size={20} />} {useSharedData ? '共享模式' : '個人模式'}
                                     </button>
-                                )}
-                                
-                                {useSharedData && (
-                                    <div className="flex items-center gap-2 bg-green-500/30 px-4 py-2 rounded-lg">
-                                        <Users size={20} className="text-green-300" />
-                                        <span className="text-white font-semibold">{onlineUsers} 人在線</span>
-                                    </div>
-                                )}
-                                
-                                {lastUpdate && useSharedData && (
-                                    <span className="text-blue-200 text-sm">
-                                        最後更新: {lastUpdate.toLocaleTimeString('zh-TW', { hour12: false })}
-                                    </span>
                                 )}
                             </div>
                         </div>
@@ -434,171 +206,115 @@
                         <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 mb-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-bold text-white">選擇頻道</h2>
-                                <div className="text-blue-200">當前時間: {currentTime.toLocaleTimeString('zh-TW', { hour12: false })}</div>
+                                <div className="text-blue-200 font-mono">當前時間: {currentTime.toLocaleTimeString('zh-TW', { hour12: false })}</div>
                             </div>
-                            
                             <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                                {[...Array(40)].map((_, i) => (
-                                    <button
-                                        key={i + 1}
-                                        onClick={() => setSelectedChannel(i + 1)}
-                                        className={`py-2 px-3 rounded-lg font-semibold transition-all ${
-                                            selectedChannel === i + 1
-                                                ? 'bg-blue-500 text-white scale-105 shadow-lg'
-                                                : 'bg-white/20 text-white hover:bg-white/30'
-                                        }`}
-                                    >
-                                        {i + 1}
-                                    </button>
-                                ))}
+                                {[...Array(40)].map((_, i) => {
+                                    const chId = i + 1;
+                                    const isDead = hasDeadBoss(chId);
+                                    return (
+                                        <button 
+                                            key={chId} 
+                                            onClick={() => setSelectedChannel(chId)} 
+                                            className={`relative py-2 px-3 rounded-lg font-semibold transition-all ${selectedChannel === chId ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                                        >
+                                            {chId}
+                                            {/* 驚嘆號提示 */}
+                                            {isDead && (
+                                                <span className="absolute -top-1 -left-1 flex h-4 w-4">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[10px] items-center justify-center font-bold">!</span>
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
                         {isLoading ? (
-                            <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-12 text-center">
-                                <RefreshCw className="animate-spin mx-auto mb-4 text-white" size={48} />
-                                <p className="text-white text-xl">載入中...</p>
-                            </div>
+                            <div className="text-center p-12 text-white"><RefreshCw className="animate-spin mx-auto mb-4" size={48} />載入中...</div>
                         ) : (
                             <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className="text-2xl font-bold text-white">頻道 {selectedChannel} - BOSS 狀態</h2>
-                                    <button
-                                        onClick={() => setShowAddBoss(!showAddBoss)}
-                                        className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
-                                    >
-                                        <Plus size={20} />
-                                        新增 BOSS
-                                    </button>
+                                    <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-all active:scale-95"><Plus size={20} />新增 BOSS</button>
                                 </div>
 
-                                {showAddBoss && (
-                                    <div className="bg-white/20 rounded-lg p-4 mb-6">
-                                        <h3 className="text-lg font-semibold text-white mb-3">快速新增預設 BOSS</h3>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
-                                            {BOSS_PRESETS.map((boss) => (
-                                                <button
-                                                    key={boss.name}
-                                                    onClick={() => addBossToChannel(selectedChannel, boss)}
-                                                    className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    disabled={channelBosses[boss.name]}
-                                                >
-                                                    {boss.name}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        
-                                    </div>
-                                )}
-
-                                {Object.keys(channelBosses).length === 0 ? (
-                                    <div className="text-center text-white/70 py-12">
-                                        <p className="text-lg">此頻道尚未新增任何 BOSS</p>
-                                        <p className="text-sm mt-2">點擊上方「新增 BOSS」按鈕開始追蹤</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {Object.entries(channelBosses).map(([bossName, boss]) => {
-                                            const respawnInfo = getRespawnTimeRange(boss);
-                                            
-                                            return (
-                                                <div
-                                                    key={bossName}
-                                                    className={`rounded-lg p-4 transition-all ${
-                                                        boss.isAlive
-                                                            ? 'bg-green-500/30 border-2 border-green-400'
-                                                            : respawnInfo?.isPossiblyAlive
-                                                            ? 'bg-yellow-500/30 border-2 border-yellow-400'
-                                                            : 'bg-red-500/30 border-2 border-red-400'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3 flex-1">
-                                                            {boss.isAlive ? (
-                                                                <CheckCircle className="text-green-300" size={24} />
-                                                            ) : (
-                                                                <XCircle className="text-red-300" size={24} />
-                                                            )}
-                                                            <div className="flex-1">
-                                                                <h3 className="text-xl font-bold text-white">{bossName}</h3>
-                                                                <p className="text-sm text-white/80">
-                                                                    重生時間: {boss.respawnMin}-{boss.respawnMax} 分鐘
-                                                                </p>
-                                                                {!boss.isAlive && respawnInfo && (
-                                                                    <div className="mt-2 space-y-1">
-                                                                        <p className="text-white flex items-center gap-2">
-                                                                            <Clock size={16} />
-                                                                            預計重生: {respawnInfo.minTime} ~ {respawnInfo.maxTime}
-                                                                        </p>
-                                                                        {respawnInfo.isPossiblyAlive ? (
-                                                                            <p className="text-yellow-300 font-semibold">
-                                                                                ⚠️ 可能已重生！建議前往確認
-                                                                            </p>
-                                                                        ) : (
-                                                                            <p className="text-white/90">
-                                                                                剩餘時間: {respawnInfo.minRemaining} ~ {respawnInfo.maxRemaining} 分鐘
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                <div className="space-y-3">
+                                    {Object.entries(channelBosses).map(([bossName, boss]) => {
+                                        const respawnInfo = getRespawnTimeRange(boss);
+                                        return (
+                                            <div key={bossName} className={`rounded-lg p-4 border-2 transition-colors duration-500 ${boss.isAlive ? 'bg-green-500/30 border-green-400' : (respawnInfo?.isPossiblyAlive ? 'bg-yellow-500/30 border-yellow-400' : 'bg-red-500/30 border-red-400')}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4 flex-1">
+                                                        <div className="w-16 h-16 rounded-lg bg-black/20 border border-white/10 flex-shrink-0 overflow-hidden shadow-inner">
+                                                            {boss.img ? <img src={boss.img} alt={bossName} className="w-full h-full object-contain p-1" /> : <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">NO IMAGE</div>}
                                                         </div>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => toggleBossStatus(selectedChannel, bossName)}
-                                                                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                                                                    boss.isAlive
-                                                                        ? 'bg-red-500 hover:bg-red-600'
-                                                                        : 'bg-green-500 hover:bg-green-600'
-                                                                } text-white`}
-                                                            >
-                                                                {boss.isAlive ? '標記死亡' : '標記重生'}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => removeBoss(selectedChannel, bossName)}
-                                                                className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors"
-                                                            >
-                                                                <Trash2 size={20} />
-                                                            </button>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                {boss.isAlive ? <CheckCircle className="text-green-300" size={20} /> : <XCircle className="text-red-300" size={20} />}
+                                                                <h3 className="text-xl font-bold text-white">{bossName}</h3>
+                                                            </div>
+                                                            <p className="text-sm text-white/80">重生間隔: {boss.respawnMin}-{boss.respawnMax} 分鐘</p>
+                                                            {!boss.isAlive && respawnInfo && (
+                                                                <div className="mt-2 text-sm">
+                                                                    <p className="text-white flex items-center gap-2"><Clock size={16} />預計重生: {respawnInfo.minTime} ~ {respawnInfo.maxTime}</p>
+                                                                    <p className={respawnInfo.isPossiblyAlive ? "text-yellow-300 font-bold animate-pulse" : "text-white/90"}>
+                                                                        剩餘時間: {respawnInfo.minRemaining} ~ {respawnInfo.maxRemaining} 分鐘
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
+                                                    <div className="flex gap-2 ml-4">
+                                                        <button onClick={() => toggleBossStatus(selectedChannel, bossName)} className={`px-4 py-2 rounded-lg font-semibold text-white transition-colors ${boss.isAlive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
+                                                            {boss.isAlive ? '標記死亡' : '標記重生'}
+                                                        </button>
+                                                        <button onClick={() => removeBoss(selectedChannel, bossName)} className="bg-gray-600 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors"><Trash2 size={20} /></button>
+                                                    </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                            </div>
+                                        );
+                                    })}
+                                    {Object.keys(channelBosses).length === 0 && <div className="text-center py-10 text-white/40 italic">此頻道目前沒有追蹤中的 BOSS。</div>}
+                                </div>
                             </div>
                         )}
+                    </div>
 
-                        <div className="mt-6 bg-white/10 backdrop-blur-md rounded-lg p-4">
-                            <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-                                <Users size={20} />
-                                使用說明
-                            </h3>
-                            <div className="text-white/80 text-sm space-y-1">
-                                {useSharedData ? (
-                                    <>
-                                        <p>• 🌐 <strong>即時同步</strong>：所有使用者即時看到相同的 BOSS 狀態</p>
-                                        <p>• 👥 <strong>多人協作</strong>：任何人都可以更新 BOSS 狀態</p>
-                                        <p>• ☁️ <strong>雲端儲存</strong>：資料永久保存在 Firebase</p>
-                                        <p>• 📱 <strong>跨裝置</strong>：手機、平板、電腦都能使用</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <p>• 💾 <strong>本地儲存</strong>：資料儲存在你的瀏覽器</p>
-                                        <p>• 🔒 <strong>隱私模式</strong>：其他人看不到你的資料</p>
-                                        <p>• 📱 <strong>離線可用</strong>：不需要網路連線</p>
-                                        {isFirebaseConfigured && <p>• 💡 切換到共享模式可與朋友一起使用</p>}
-                                    </>
-                                )}
+                    {/* Modal */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}>
+                            <div className="bg-slate-800 border border-white/20 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col modal-content" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                                    <h2 className="text-2xl font-bold text-white flex items-center gap-2"><Plus className="text-green-400" /> 選擇要新增的 BOSS</h2>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-white/60 hover:text-white p-2 hover:bg-white/10 rounded-full transition-all"><X size={28} /></button>
+                                </div>
+                                <div className="p-6 overflow-y-auto space-y-8 no-scrollbar">
+                                    {Object.entries(groupedPresets).map(([region, list]) => (
+                                        <div key={region} className="space-y-4">
+                                            <h3 className="text-blue-300 font-bold flex items-center gap-2 text-lg"><div className="w-2 h-2 bg-blue-500 rounded-full"></div> {region}</h3>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                                {list.map((boss) => (
+                                                    <button key={boss.name} onClick={() => addBossToChannel(selectedChannel, boss)} className="flex items-center gap-3 bg-white/5 hover:bg-purple-500/80 text-white p-3 rounded-xl border border-white/10 transition-all group disabled:opacity-30" disabled={channelBosses[boss.name]}>
+                                                        <div className="w-10 h-10 rounded-lg bg-black/40 border border-white/10 flex-shrink-0 overflow-hidden group-hover:border-white/40">
+                                                            {boss.img && <img src={boss.img} alt={boss.name} className="w-full h-full object-contain" />}
+                                                        </div>
+                                                        <span className="font-medium truncate">{boss.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-4 border-t border-white/10 text-center text-white/40 text-sm">點擊灰色區塊可關閉視窗</div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             );
         };
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<BossTracker />);
     </script>
